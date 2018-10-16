@@ -16,17 +16,18 @@ plugins {
     id "com.jfrog.bintray" version "1.2"
 }
 
-version "3.0.7"
+version "3.0.8-fix"
 group "org.grails.plugins"
 
-apply plugin: 'maven-publish'
-apply plugin: 'eclipse'
+//apply plugin: 'maven-publish'
+//apply plugin: 'eclipse'
 apply plugin: 'idea'
 apply plugin: "org.grails.grails-plugin"
+apply plugin:"org.grails.grails-plugin-publish"
 apply plugin: "org.grails.grails-doc"
 // Used for publishing to central repository, remove if not needed
-apply from:'https://raw.githubusercontent.com/grails/grails-profile-repository/master/profiles/plugin/templates/grailsCentralPublishing.gradle'
-apply from:'https://raw.githubusercontent.com/grails/grails-profile-repository/master/profiles/plugin/templates/bintrayPublishing.gradle'
+//apply from:'https://raw.githubusercontent.com/grails/grails-profile-repository/master/profiles/plugin/templates/grailsCentralPublishing.gradle'
+//apply from:'https://raw.githubusercontent.com/grails/grails-profile-repository/master/profiles/plugin/templates/bintrayPublishing.gradle'
 
 ext {
     grailsVersion = project.grailsVersion
@@ -73,26 +74,53 @@ task wrapper(type: Wrapper) {
     gradleVersion = gradleWrapperVersion
 }
 
+publishing {
+  publications {
+    mavenJar(MavenPublication) {
+      pom.withXml {
+        def pomNode = asNode()
+        pomNode.dependencyManagement.replaceNode {}
 
-bintray {
-    user = System.getenv("BINTRAY_USER") ?: project.hasProperty("bintrayUser") ? project.bintrayUser : ''
-    key = System.getenv("BINTRAY_KEY") ?: project.hasProperty("bintrayKey") ? project.bintrayKey : ''
-    publications = ['maven']
-    pkg {
-        repo = 'grails-plugins'
-        userOrg = 'ctoestreich'
-        name = "cxf-client"
-        desc = "Grails CXF Client Plugin"
-        websiteUrl = "http://grails.org/plugin/grails-cxf-client"
-        issueTrackerUrl = "https://github.com/Grails-Plugin-Consortium/grails-cxf-client/issues"
-        vcsUrl = "https://github.com/Grails-Plugin-Consortium/grails-cxf-client"
-        licenses = ['Apache-2.0']
-        publicDownloadNumbers = true
+        // simply remove dependencies without a version
+        // version-less dependencies are handled with dependencyManagement
+        // see https://github.com/spring-gradle-plugins/dependency-management-plugin/issues/8 for more complete solutions
+        pomNode.dependencies.dependency.findAll {
+          it.version.text().isEmpty()
+        }.each {
+          it.replaceNode {}
+        }
+      }
+      from components.java
     }
+  }
+  repositories {
+    maven {
+      credentials {
+        username "dng"
+        password "AP2zNQZDSjKg1qPh7vULjn8JXC4"
+      }
+      url "http://maven.33cows.com/artifactory/libs"
+    }
+  }
 }
 
 
-bintrayUpload.dependsOn sourcesJar, javadocJar
+// publish by grails publish-plugin
+
+
+grailsPublish {
+  // TODO: Provide values here
+//    user = ''
+//    key = 'key'
+  license {
+    name = 'Apache-2.0'
+  }
+  title = "My Plugin"
+  desc = "Full plugin description"
+  developers = [johndoe:"John Doe"]
+  portalUser = ""
+  portalPassword = ""
+}
 
 jar {
     exclude 'org/grails/cxf/test/**',
